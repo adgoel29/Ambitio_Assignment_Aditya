@@ -21,8 +21,8 @@ class DraftGenerator:
         try:
             response = generate_with_model(self.model, prompt)
             response_text = self._response_text(response)
-            print(f"[DEBUG] response type: {type(response)}")
-            print(f"[DEBUG] response_text repr: {repr(response_text[:300])}")
+            # print(f"[DEBUG] response type: {type(response)}")
+            # print(f"[DEBUG] response_text repr: {repr(response_text[:300])}")
             sections = self._parse_response(response_text)
             if not isinstance(sections, dict):
                 print(f"[DraftGenerator] Unexpected parsed sections type: {type(sections)}")
