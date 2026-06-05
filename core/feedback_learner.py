@@ -41,7 +41,7 @@ class FeedbackLearner:
             f"{original}\n\n"
             "Edited draft:\n"
             f"{edited}\n\n"
-            "Operator feedback:\n"
+            "Operator feedback or instructions:\n"
             f"{feedback}\n"
         )
         from core.genai_client import generate_with_model

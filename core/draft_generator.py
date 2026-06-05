@@ -13,10 +13,16 @@ class DraftGenerator:
         configure_genai()
         self.model = make_model(LLM_MODEL)
 
-    def generate(self, chunks: List[Dict], structured_fields: Dict, learned_rules: List[str]) -> Dict:
+    def generate(
+        self,
+        chunks: List[Dict],
+        structured_fields: Dict,
+        learned_rules: List[str],
+        operator_instructions: str = "",
+    ) -> Dict:
         """Generate the draft and section-level evidence mapping."""
         evidence_block = self._build_evidence_block(chunks)
-        prompt = self._build_prompt(evidence_block, structured_fields, learned_rules)
+        prompt = self._build_prompt(evidence_block, structured_fields, learned_rules, operator_instructions)
 
         try:
             response = generate_with_model(self.model, prompt)
@@ -45,12 +51,39 @@ class DraftGenerator:
             )
         return "\n".join(lines)
 
-    def _build_prompt(self, evidence_block: str, structured_fields: Dict, learned_rules: List[str]) -> str:
+    def _build_prompt(
+        self,
+        evidence_block: str,
+        structured_fields: Dict,
+        learned_rules: List[str],
+        operator_instructions: str = "",
+    ) -> str:
         learned_rules_block = ""
         if learned_rules:
-            learned_rules_block = "Rules learned from previous edits:\n- " + "\n- ".join(learned_rules) + "\n\n"
+            learned_rules_block = "Learned rules from previous edits:\n- " + "\n- ".join(learned_rules) + "\n\n"
+            learned_rules_block += (
+                "Apply these learned rules when writing the summary. "
+                "If a rule cannot be supported by the evidence, keep the response evidence-based and do not invent facts.\n\n"
+            )
+
+        instruction_block = ""
+        if operator_instructions:
+            instruction_block = (
+                "Operator feedback or further instructions:\n"
+                f"{operator_instructions.strip()}\n\n"
+                "Apply these instructions when generating the summary. "
+                "If an instruction cannot be supported by the evidence, remain evidence-based and do not invent facts.\n\n"
+            )
 
         return (
+            "You are a legal document analyst. Write a case fact summary using ONLY the evidence chunks below.\n\n"
+            "Rules:\n"
+            "- Cite chunk IDs inline like [CHUNK_001] after every factual claim.\n"
+            "- If information is absent from evidence, write \"Not identified in document.\"\n"
+            "- Do not invent facts.\n\n"
+            f"{learned_rules_block}"
+            f"{instruction_block}"
+            "Return ONLY valid JSON (no markdown fences) with this exact structure:\n"
             "You are a legal document analyst. Write a case fact summary using ONLY the evidence chunks below.\n\n"
             "Rules:\n"
             "- Cite chunk IDs inline like [CHUNK_001] after every factual claim.\n"
@@ -75,7 +108,9 @@ class DraftGenerator:
     def _assemble_draft_text(self, sections: Dict) -> str:
         blocks = []
         for name, data in sections.items():
-            blocks.append(f"## {name}\n\n{data.get('text', '').strip()}\n")
+            if not isinstance(data, dict):
+                data = {"text": str(data) if data is not None else "", "chunk_ids": []}
+            blocks.append(f"## {name}\n\n{str(data.get('text', '')).strip()}\n")
         return "\n".join(blocks).strip()
 
     def _parse_response(self, response_text: str) -> Dict:

@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 load_dotenv()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "your-key-here")
 EMBEDDING_MODEL = "gemini-embedding-001"
-LLM_MODEL = "gemini-2.5-flash"
+LLM_MODEL = "gemini-2.5-flash-lite"
 
 
 CHUNK_SIZE = 500

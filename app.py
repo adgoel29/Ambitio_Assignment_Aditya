@@ -53,7 +53,12 @@ def main():
                     rag_engine.ingest(doc)
                     chunks = rag_engine.retrieve_for_summary()
                     learned_rules = st.session_state.learner.get_top_rules()
-                    result = draft_generator.generate(chunks, doc["structured_fields"], learned_rules)
+                    result = draft_generator.generate(
+                        chunks,
+                        doc["structured_fields"],
+                        learned_rules,
+                        operator_instructions="",
+                    )
 
                     st.session_state.doc = doc
                     st.session_state.chunks = chunks
@@ -83,6 +88,8 @@ def main():
             st.subheader("Evidence Chunks")
             used_chunk_ids = set()
             for section in st.session_state.result.get("sections", {}).values():
+                if not isinstance(section, dict):
+                    continue
                 for cid in section.get("chunk_ids", []):
                     used_chunk_ids.add(cid)
 
@@ -108,6 +115,9 @@ def main():
         st.markdown("---")
         with st.expander("📎 Evidence Breakdown by Section", expanded=True):
             for section_name, section_data in st.session_state.result.get("sections", {}).items():
+                if not isinstance(section_data, dict):
+                    section_data = {"text": str(section_data) if section_data is not None else "", "chunk_ids": []}
+
                 st.markdown(f"**{section_name}**")
                 st.write(section_data.get("text", ""))
                 if section_data.get("chunk_ids"):
@@ -121,9 +131,13 @@ def main():
                 st.divider()
 
         st.markdown("---")
-        st.subheader("Feedback")
-        operator_feedback = st.text_area("Describe what you changed and why...", key="operator_feedback", height=150)
-        if st.button("Submit Edits & Improve Future Drafts"):
+        st.subheader("Feedback / Further Instructions")
+        operator_feedback = st.text_area(
+            "Provide feedback on the draft or further instructions on how the system should behave or what to include.",
+            key="operator_feedback",
+            height=150,
+        )
+        if st.button("Submit Feedback/Instructions & Improve Future Drafts"):
             learner = st.session_state.learner
             learner.capture_edit(
                 st.session_state.original_draft,
@@ -131,7 +145,18 @@ def main():
                 operator_feedback,
                 {"doc_id": st.session_state.doc.get("doc_id", ""), "file_name": st.session_state.doc.get("file_name", "")},
             )
-            st.success(f"Edits captured. {len(learner.learned_rules)} rules now in store.")
+            learned_rules = learner.get_top_rules()
+            draft_generator = DraftGenerator()
+            updated_result = draft_generator.generate(
+                st.session_state.chunks,
+                st.session_state.doc["structured_fields"],
+                learned_rules,
+                operator_instructions=operator_feedback,
+            )
+            st.session_state.result = updated_result
+            st.session_state.original_draft = updated_result["draft_text"]
+            st.session_state.draft_text_area = updated_result["draft_text"]
+            st.success(f"Feedback/instructions captured and draft regenerated with learned rules. {len(learner.learned_rules)} rules now in store.")
 
         with st.sidebar:
             st.header("Learned Rules")
