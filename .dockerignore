@@ -1,0 +1,14 @@
+.git
+__pycache__
+*.pyc
+
+.env
+
+ambt/
+venv/
+.venv/
+
+data/
+*.db
+
+README.md
