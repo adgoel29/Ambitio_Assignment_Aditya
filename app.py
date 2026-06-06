@@ -70,6 +70,11 @@ def main():
                 except Exception as error:
                     st.error(f"Document processing failed: {error}")
     else:
+        if "pending_result" in st.session_state:
+            st.session_state.result = st.session_state.pop("pending_result")
+        if "pending_draft_text" in st.session_state:
+            st.session_state.draft_text_area = st.session_state.pop("pending_draft_text")
+
         left, right = st.columns([4, 6])
 
         with left:
@@ -153,9 +158,8 @@ def main():
                 learned_rules,
                 operator_instructions=operator_feedback,
             )
-            st.session_state.result = updated_result
-            st.session_state.original_draft = updated_result["draft_text"]
-            st.session_state.draft_text_area = updated_result["draft_text"]
+            st.session_state.pending_result = updated_result
+            st.session_state.pending_draft_text = updated_result["draft_text"]
             st.success(f"Feedback/instructions captured and draft regenerated with learned rules. {len(learner.learned_rules)} rules now in store.")
 
         with st.sidebar:
